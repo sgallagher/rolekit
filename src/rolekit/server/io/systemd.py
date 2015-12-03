@@ -102,6 +102,12 @@ class SystemdContainerServiceUnit():
         else:
             self.env = {}
 
+    def set_env(self, key, value):
+        self.env[key] = value
+
+    def add_port(self, port):
+        self.ports.extend(port)
+
     def write(self):
         path = "%s/%s.service" % (SYSTEMD_UNITS, self.container_name)
 
