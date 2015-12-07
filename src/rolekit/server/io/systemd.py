@@ -64,6 +64,7 @@ def escape_systemd_unit(unit):
     # It only addresses the escapes that we allow in our unit names
     return unit.replace(".", "_2e").replace("-", "_2d")
 
+
 class SystemdContainerServiceUnit():
     """
     Class to write out service units for contained services
@@ -80,38 +81,63 @@ class SystemdContainerServiceUnit():
 
     def __init__(self,
                  image_name=None,
+                 tag=None,
                  container_name=None,
+                 host_name = None,
                  desc=None,
                  env=None,
-                 ports=None):
+                 ports=None,
+                 bind_mounts=None):
 
         if not image_name:
             raise RolekitError("Missing container image name")
         if not desc:
             raise RolekitError("Missing description")
-        if not ports:
-            raise RolekitError("No ports specified")
 
         self.image_name = image_name
+        self.tag = None
         self.container_name = container_name
+        self.host_name = host_name
         self.desc = desc
         self.ports = ports
+        self.env = {}
+        self.bind_mounts = []
 
         if env:
             self.env = env
-        else:
-            self.env = {}
+
+        if tag:
+            self.tag = tag
+
+        if bind_mounts:
+            self.bind_mounts = bind_mounts
+
+    def set_env(self, key, value):
+        self.env[key] = value
+
+    def add_bind_mount(self, mount):
+        self.bind_mounts.append(mount)
 
     def write(self):
         path = "%s/%s.service" % (SYSTEMD_UNITS, self.container_name)
 
         docker_run = "/usr/bin/docker run --name=%s" % self.container_name
+
         for key in self.env:
             docker_run += " --env %s=%s" % (key, self.env[key])
 
+        if self.host_name:
+            docker_run += " -h %s" % self.host_name
+
         for mapping in self.ports:
             docker_run += " -p %s" % mapping
+
+        for mount in self.bind_mounts:
+            docker_run += " -v %s" % mount
+
         docker_run += " %s" % self.image_name
+        if self.tag:
+            docker_run += ":%s" % self.tag
 
         with open(path, "w") as f:
             f.write("[Unit]\n")

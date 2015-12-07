@@ -22,6 +22,7 @@
 # It is deployed inside of a Docker container
 
 import os
+import json
 import dbus.service
 from rolekit.server.rolebase import RoleBase
 from rolekit.server.rolebase import RoleDeploymentValues
@@ -170,7 +171,18 @@ class Role(RoleBase):
                                      version='auto')
 
         # First, pull down the latest version of the memcached container
-        dockerclient.pull(MEMCACHED_DOCKER_IMAGE, tag="latest")
+        saved_status = ""
+        for line in dockerclient.pull(MEMCACHED_DOCKER_IMAGE,
+                                      tag="latest",
+                                      stream=True):
+            msg = json.loads(line.decode('utf8'))
+            if "stream" in msg:
+                log.info1("STREAM: %s", msg["stream"])
+            if "status" in msg and msg["status"] != saved_status:
+                log.info1("STATUS: %s", msg["status"])
+                # Save the current status message so we don't keep writing
+                # "Downloading" or "Extracting" into the logs repeatedly
+                saved_status = msg["status"]
 
         log.debug2("Creating systemd service unit")
         # Generate a systemd service unit for this container
@@ -183,9 +195,13 @@ class Role(RoleBase):
                 "MEMCACHED_CONNECTIONS": str(values['connections']),
                 "MEMCACHED_THREADS": str(values['threads'])
             },
-            ports = ("{0}:{0}/tcp".format(MEMCACHED_DEFAULT_PORT),
-                     "{0}:{0}/udp".format(MEMCACHED_DEFAULT_PORT))
         )
+
+        container_unit.add_port(private_port=MEMCACHED_DEFAULT_PORT,
+                                proto="tcp")
+        container_unit.add_port(private_port=MEMCACHED_DEFAULT_PORT,
+                                proto="udp")
+
         container_unit.write()
 
         # Make systemd load this new unit file

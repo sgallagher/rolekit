@@ -22,6 +22,7 @@ nobase_dist_python_DATA = \
 	rolekit/server/__init__.py \
 	rolekit/server/server.py \
 	rolekit/server/io/__init__.py \
+	rolekit/server/io/docker.py \
 	rolekit/server/io/hostname.py \
 	rolekit/server/io/rolesettings.py \
 	rolekit/server/io/systemd.py

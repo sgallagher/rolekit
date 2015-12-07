@@ -1289,6 +1289,7 @@ class RoleDeploymentValues:
         unitfile['Unit']['Description'] = self._desc
         unitfile['Unit']['Requires'] = tuple(self._requirements)
         unitfile['Unit']['BindsTo'] = tuple(self._requirements)
+        unitfile['Unit']['PartOf'] = tuple(self._requirements)
 
         # All roles are also assumed to require the network, so
         # we will start it after network.target
