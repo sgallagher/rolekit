@@ -83,7 +83,9 @@ make install DESTDIR=%{buildroot}
 %dir %{_sysconfdir}/rolekit/deferredroles
 %dir %{_prefix}/lib/rolekit
 %dir %{_prefix}/lib/rolekit/roles
+
 %{_prefix}/lib/rolekit/roles/domaincontroller/*.py*
+%{_prefix}/lib/rolekit/roles/domaincontroller-container/*.py*
 
 %{_prefix}/lib/rolekit/roles/databaseserver/*.py*
 %{_prefix}/lib/rolekit/roles/databaseserver/tools/rk_db_setpwd.py*

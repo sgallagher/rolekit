@@ -30,6 +30,8 @@ from rolekit.logger import log
 from rolekit.server.rolebase import RoleBase
 from rolekit.server.rolebase import RoleDeploymentValues
 from rolekit.server.io.hostname import set_hostname
+from rolekit.server.io.docker import RolekitDockerPortBindings, \
+                                     PROTO_TCP, PROTO_UDP
 from rolekit.server.io.systemd import enable_units
 from rolekit.server.io.systemd import SystemdContainerServiceUnit
 from rolekit import async
@@ -41,7 +43,8 @@ from IPy import IP
 
 INSTALL_ARG_FILENAME="ipa-server-install-options"
 
-FREEIPA_DOCKER_IMAGE = "adelton/freeipa-server"
+FREEIPA_DOCKER_IMAGE = "sgallagh/freeipa-server"
+FREEIPA_DOCKER_TAG = "latest"
 
 class Role(RoleBase):
     # Use _DEFAULTS from RoleBase and overwrite settings or add new if needed.
@@ -310,7 +313,37 @@ class Role(RoleBase):
 
         # First, pull down the latest version of the memcached container
         # TODO: get the appropriate tag from /etc/os-release
-        dockerclient.pull(FREEIPA_DOCKER_IMAGE, tag="fedora-23")
+        dockerclient.pull(FREEIPA_DOCKER_IMAGE, tag=FREEIPA_DOCKER_TAG)
+
+        # Set up the port bindings
+        bindings = RolekitDockerPortBindings()
+
+        bindings.add_binding(80, 80, PROTO_TCP)     # HTTP
+        bindings.add_binding(88, 88, PROTO_TCP)     # Kerberos
+        bindings.add_binding(88, 88, PROTO_UDP)     # Kerberos
+        bindings.add_binding(123, 123, PROTO_TCP)   # NTP
+        bindings.add_binding(389, 389, PROTO_TCP)   # LDAP[TLS]
+        bindings.add_binding(443, 443, PROTO_TCP)   # HTTPS
+        bindings.add_binding(464, 464, PROTO_TCP)   # Ketberos
+        bindings.add_binding(464, 464, PROTO_UDP)   # Kerberos
+        bindings.add_binding(636, 636, PROTO_TCP)   # LDAPS
+        bindings.add_binding(7389, 7389, PROTO_TCP) # LDAP Replication
+        bindings.add_binding(9443, 9443, PROTO_TCP) # Dogtag
+        bindings.add_binding(9444, 9444, PROTO_TCP) # Dogtag
+        bindings.add_binding(9445, 9445, PROTO_TCP) # Dogtag
+
+        if values["serve_dns"]:
+            bindings.add_binding(53, 53, PROTO_TCP) #DNS
+            bindings.add_binding(53, 53, PROTO_UDP) #DNS
+
+
+        # Launch the container once to do the initial setup.
+        dockerclient.create_container(
+            ports=bindings.docker_ports,
+            host_config=docker.utils.create_host_config(
+                port_bindings=bindings.docker_bindings
+            )
+        )
 
         log.debug2("Creating systemd service unit")
         # Generate a systemd service unit for this container
@@ -318,29 +351,11 @@ class Role(RoleBase):
             image_name = FREEIPA_DOCKER_IMAGE,
             container_name = "freeipa_%s" % self.get_name(),
             desc="FreeIPA docker container - %s" % self.get_name(),
-            ports = [
-                "80:80/tcp",        # HTTP
-                "88:88/tcp",        # Kerberos
-                "88:88/udp",        # Kerberos
-                "123:123/udp",      # NTP
-                "389:389/tcp",      # LDAP[TLS]
-                "443:443/tcp",      # HTTPS
-                "464:464/tcp",      # Kerberos
-                "464:464/udp",      # Kerberos
-                "636:636/tcp",      # LDAPS
-                "7389:7389/tcp",    # LDAP Replication
-                "9443:9443/tcp",    # Dogtag
-                "9444:9444/tcp",    # Dogtag
-                "9445:9445/tcp"     # Dogtag
-            ]
+            ports = bindings.docker_cli_bindings,
         )
 
         if values["primary_ip"]:
             container_unit.set_env("IPA_SERVER_IP", str(values["primary_ip"]))
-
-        if values["serve_dns"]:
-            container_unit.add_port("53:53/udp")        # DNS
-            container_unit.add_port("53:53/tcp")        # DNS
 
         container_unit.write()
 

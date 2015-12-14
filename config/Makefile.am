@@ -33,6 +33,7 @@ EXTRA_DIST = \
 	rolekit.sysconfig \
 	roles/testrole/role.py \
 	roles/domaincontroller/role.py \
+	roles/domaincontroller-container/role.py \
 	roles/databaseserver/role.py \
 	roles/databaseserver/tools/rk_db_setpwd.py \
 	roles/memcache/role.py
