@@ -210,10 +210,26 @@ class Role(RoleBase):
 
             # if the user has requested DNS forwarders, add them
             if 'dns_forwarders' in values:
-                [ipa_install_args.append("--forwarder=%s" % x)
-                     for x in values['dns_forwarders']['ipv4']]
-                [ipa_install_args.append("--forwarder=%s" % x)
-                     for x in values['dns_forwarders']['ipv6']]
+                has_forwarders = False
+
+                if ('ipv4' in values['dns_forwarders'] and len(
+                        values['dns_forwarders']['ipv4']) > 0):
+                    [ipa_install_args.append("--forwarder=%s" % x) for x in
+                     values['dns_forwarders']['ipv4']]
+                    has_forwarders = True
+
+                if ('ipv6' in values['dns_forwarders'] and len(
+                        values['dns_forwarders']['ipv6]']) > 0):
+                    [ipa_install_args.append("--forwarder=%s" % x) for x in
+                     values['dns_forwarders']['ipv6']]
+                    has_forwarders = True
+
+                if not has_forwarders:
+                    # Someone specified the forwarders explicitly but set no
+                    # values. This is an error.
+                    raise RolekitError(
+                        INVALID_VALUE,
+                        "dns_forwarders passed but contains no entries.")
             else:
                 ipa_install_args.append('--no-forwarders')
 
